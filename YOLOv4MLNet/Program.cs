@@ -25,14 +25,6 @@ namespace YOLOv4MLNet
 
         static readonly string[] classesNames = new string[] { "person", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat", "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "sofa", "pottedplant", "bed", "diningtable", "toilet", "tvmonitor", "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush" };
 
-        static public ConcurrentQueue<YoloV4Result> stack = new ConcurrentQueue<YoloV4Result>();
-
-
-
-
-
-
-
         static async Task<YoloV4Prediction> GetPredictionAsync(PredictionEngine<YoloV4BitmapData, YoloV4Prediction> predictionEngine, Bitmap bitmap)
         {
             return await Task<YoloV4Prediction>.Factory.StartNew(() =>
@@ -41,8 +33,7 @@ namespace YOLOv4MLNet
             });
         }
 
-
-        public static async Task<ConcurrentQueue<YoloV4Result>> FunAsync(string s)
+        public static async Task FunAsync(string s, ConcurrentQueue<YoloV4Result> queueeue,CancellationToken ct)
         {
             /////////////////////////////////////////////////////////////////////////////////////////////
             ///not my stuff
@@ -95,15 +86,9 @@ namespace YOLOv4MLNet
             ///my stuff
             /////////////////////////////////////////////////////////////////////////////////////////////
 
-
-
-
-            var cst = new CancellationTokenSource();
-            var ct = cst.Token;
             var count = 0;
-            var count2 = 0;
             var tmp = new ConcurrentDictionary<string, int>();
-
+            int val;
 
             var Tblock = new ActionBlock<string>(async imageName =>
             {
@@ -119,10 +104,16 @@ namespace YOLOv4MLNet
                         if (!tmp.ContainsKey(res.Label))
                         {
                             tmp.TryAdd(res.Label, 1);
-                            Console.WriteLine($"{res.Label}");
+                            Console.WriteLine($"{res.Label}, 1");
                         }
-                        Console.WriteLine($"                                     /{ ++count2}/");
-                        stack.Enqueue(res);
+                        else
+                        {
+                            tmp.TryGetValue(res.Label,out val);
+                            tmp.TryUpdate(res.Label, val + 1, val);
+                            Console.WriteLine($"{res.Label},{val + 1}");
+                        }
+                        
+                        queueeue.Enqueue(res);
                     }
                     /*Console.WriteLine("]");*/
                 }
@@ -134,25 +125,6 @@ namespace YOLOv4MLNet
                 }
 
             );
-
-
-            //cancelation
-            var th = new Thread(new ThreadStart(() =>
-            {
-                while (true)
-                {
-                    string s = Console.ReadLine();
-                    if (s == "c" || s == "с")
-                        cst.Cancel();
-                }
-            }))
-            {
-                IsBackground = true
-            }
-            ;
-
-            th.Start();
-            //!cancelation
 
             Parallel.ForEach(images, imageName => Tblock.Post(imageName));
             Tblock.Complete();
@@ -167,7 +139,7 @@ namespace YOLOv4MLNet
                 Console.WriteLine("+++++++++++++++++++++РУЧНОЕ ПРЕРЫВАНИЕ++++++++++++++++++++++++++ ");
 
             }
-            return stack;
+            
         }
     }
 }
